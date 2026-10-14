@@ -153,8 +153,7 @@ Register it in `sources/__init__.py` and add a `sources.weather` block to `confi
 
 ## Sample alert
 
-> 📸 *Screenshot placeholder:* add `docs/sample-alert.png` showing a real Telegram alert and
-> embed it here with `![Sample alert](docs/sample-alert.png)`.
+![Sample Telegram alert](docs/sample-alert.png)
 
 Dry-run output looks like this:
 
