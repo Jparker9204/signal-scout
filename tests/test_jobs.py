@@ -145,3 +145,46 @@ def test_usajobs_headers_and_parse(session, monkeypatch):
     assert [i.uid for i in items] == ["usajobs:P1"]  # geo-filtered by API, not by name
     assert responses.calls[0].request.headers["Authorization-Key"] == "k" * 20
     assert responses.calls[0].request.headers["User-Agent"] == "me@example.com"
+
+
+def _usajobs_item(pid, title, series):
+    return {
+        "MatchedObjectDescriptor": {
+            "PositionID": pid,
+            "PositionTitle": title,
+            "OrganizationName": "Army",
+            "PositionURI": f"https://usajobs/{pid}",
+            "PositionLocationDisplay": "Multiple Locations",
+            "JobCategory": [{"Code": series}],
+        }
+    }
+
+
+@responses.activate
+def test_usajobs_it_series_kept_even_without_title_keyword(session, monkeypatch):
+    """Regression: federal titles like 'IT Specialist' never contain 'help desk', so 0 were kept."""
+    monkeypatch.setenv("USAJOBS_API_KEY", "k" * 20)
+    monkeypatch.setenv("USAJOBS_EMAIL", "me@example.com")
+    body = {
+        "SearchResult": {
+            "SearchResultItems": [
+                _usajobs_item("A", "IT Specialist", "2210"),
+                _usajobs_item("B", "Telecommunications Specialist", "0391"),
+                _usajobs_item("C", "Pharmacy Technician", "0661"),
+            ]
+        }
+    }
+    responses.get(USAJOBS_URL, json=body)
+    src = JobsSource(
+        {
+            "keywords": ["help desk", "system administrator"],
+            "locations": ["Huntsville"],
+            "usajobs": {"enabled": True},
+        },
+        session,
+    )
+    items = src.fetch()
+    assert sorted(i.uid for i in items) == ["usajobs:A", "usajobs:B"]
+    # one query per keyword + one IT job-series query
+    assert len(responses.calls) == 3
+    assert "JobCategoryCode=2210%3B0391%3B0332%3B1550" in responses.calls[-1].request.url

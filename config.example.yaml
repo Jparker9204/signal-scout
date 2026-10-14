@@ -26,3 +26,4 @@ sources:
       enabled: true           # silently skipped if USAJOBS_API_KEY/EMAIL unset
       location: "Huntsville, Alabama"
       radius_miles: 50
+      job_series: ["2210", "0391", "0332", "1550"]  # OPM IT series kept regardless of title

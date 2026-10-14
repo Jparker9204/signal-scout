@@ -15,6 +15,10 @@ log = logging.getLogger(__name__)
 GREENHOUSE_URL = "https://boards-api.greenhouse.io/v1/boards/{board}/jobs"
 LEVER_URL = "https://api.lever.co/v0/postings/{company}?mode=json"
 USAJOBS_URL = "https://data.usajobs.gov/api/search"
+# OPM occupational series for IT work. USAJOBS titles are generic ("IT Specialist",
+# "Telecommunications Specialist") and rarely contain board-style keywords such as
+# "help desk", so federal postings are matched by series as well as by title.
+DEFAULT_USAJOBS_SERIES = ["2210", "0391", "0332", "1550"]
 
 
 def _norm(text: str) -> str:
@@ -46,6 +50,10 @@ class JobsSource(Source):
         self.locations: list[str] = cfg.get("locations", [])
         self.allow_remote: bool = bool(cfg.get("allow_remote", False))
         self.min_salary: float = float(cfg.get("min_salary", 0) or 0)
+        ucfg = cfg.get("usajobs") or {}
+        self.usajobs_series: list[str] = [
+            str(x).zfill(4) for x in ucfg.get("job_series", DEFAULT_USAJOBS_SERIES)
+        ]
 
         raw: list[Item] = []
         errors = 0
@@ -73,7 +81,9 @@ class JobsSource(Source):
         return kept
 
     def _keep(self, item: Item) -> bool:
-        if not matches_keywords(item.title, self.keywords):
+        series = set(item.extra.get("job_series") or [])
+        it_series = bool(series & set(self.usajobs_series))
+        if not (it_series or matches_keywords(item.title, self.keywords)):
             return False
         loc_ok = item.extra.get("geo_filtered") or matches_location(
             item.extra.get("location", ""), self.locations, self.allow_remote
@@ -129,20 +139,23 @@ class JobsSource(Source):
             log.info("usajobs skipped: USAJOBS_API_KEY/USAJOBS_EMAIL not set")
             return []
         headers = {"Host": "data.usajobs.gov", "User-Agent": email, "Authorization-Key": key}
+        base = {
+            "LocationName": ucfg.get("location", "Huntsville, Alabama"),
+            "Radius": ucfg.get("radius_miles", 50),
+            "ResultsPerPage": 100,
+        }
+        queries = [{**base, "Keyword": kw} for kw in self.keywords or [""]]
+        if self.usajobs_series:  # one extra query for every IT-series posting nearby
+            queries.append({**base, "JobCategoryCode": ";".join(self.usajobs_series)})
         out = []
-        for kw in self.keywords or [""]:
-            params = {
-                "Keyword": kw,
-                "LocationName": ucfg.get("location", "Huntsville, Alabama"),
-                "Radius": ucfg.get("radius_miles", 50),
-                "ResultsPerPage": 100,
-            }
+        for params in queries:
             data = self.get_json(USAJOBS_URL, params=params, headers=headers)
             for res in data.get("SearchResult", {}).get("SearchResultItems", []):
                 d = res.get("MatchedObjectDescriptor", {})
                 pay = (d.get("PositionRemuneration") or [{}])[0]
                 salary = float(pay["MaximumRange"]) if pay.get("MaximumRange") else None
                 location = d.get("PositionLocationDisplay", "")
+                series = [c.get("Code", "") for c in d.get("JobCategory") or []]
                 out.append(
                     Item(
                         source=self.name,
@@ -150,7 +163,12 @@ class JobsSource(Source):
                         title=f"{d.get('PositionTitle', '')} @ {d.get('OrganizationName', '')}",
                         url=d.get("PositionURI", ""),
                         summary=f"{location} | up to ${salary:,.0f}" if salary else location,
-                        extra={"location": location, "salary_max": salary, "geo_filtered": True},
+                        extra={
+                            "location": location,
+                            "salary_max": salary,
+                            "geo_filtered": True,
+                            "job_series": series,
+                        },
                     )
                 )
         # Dedup across keyword queries; USAJOBS already filtered by location radius.
