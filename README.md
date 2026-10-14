@@ -1,6 +1,6 @@
 # signal-scout
 
-[![CI](https://github.com/YOUR_GITHUB_USERNAME/signal-scout/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/signal-scout/actions/workflows/ci.yml)
+[![CI](https://github.com/Jparker9204/signal-scout/actions/workflows/ci.yml/badge.svg)](https://github.com/Jparker9204/signal-scout/actions/workflows/ci.yml)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
@@ -68,7 +68,7 @@ signal_scout/
 Requires Python 3.12 ([python.org](https://www.python.org/downloads/) or `winget install Python.Python.3.12`).
 
 ```powershell
-git clone https://github.com/YOUR_GITHUB_USERNAME/signal-scout.git
+git clone https://github.com/Jparker9204/signal-scout.git
 cd signal-scout
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
