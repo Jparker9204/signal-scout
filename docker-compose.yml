@@ -1,0 +1,9 @@
+services:
+  signal-scout:
+    build: .
+    image: signal-scout:latest
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
