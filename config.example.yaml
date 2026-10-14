@@ -1,0 +1,28 @@
+# Copy to config.yaml and edit. Secrets go in .env, never here.
+interval_minutes: 30        # loop interval when not using --once
+max_alerts_per_run: 20      # cap to avoid flooding the chat
+db_path: data/seen.db       # SQLite dedup store
+log_level: INFO
+
+sources:
+  crypto:
+    enabled: true
+    vs_currency: usd
+    top_n: 100                # scan top N coins by market cap (CoinGecko public API)
+    min_abs_change_pct: 10    # alert when |24h change| >= this
+    min_volume_usd: 10000000  # ignore illiquid coins
+    watchlist: []             # e.g. [btc, eth, sol]; empty = all of top_n
+
+  jobs:
+    enabled: true
+    keywords: ["IT support", "help desk", "helpdesk", "system administrator",
+               "systems administrator", "network", "desktop support"]
+    locations: ["Huntsville"]
+    allow_remote: true        # also keep postings whose location mentions Remote
+    min_salary: 0             # only applied when a posting publishes salary
+    greenhouse: [cloudflare, datadog, gitlab]   # boards-api.greenhouse.io board tokens
+    lever: [palantir, spotify]                   # api.lever.co company slugs
+    usajobs:
+      enabled: true           # silently skipped if USAJOBS_API_KEY/EMAIL unset
+      location: "Huntsville, Alabama"
+      radius_miles: 50
